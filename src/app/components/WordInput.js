@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   TextField,
   Button,
@@ -15,7 +16,9 @@ import {
   Alert,
 } from '@mui/material';
 
-export default function WordInput({ centerLetter, onSubmit }) {
+const DICTIONARY_API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
+
+export default function WordInput({ centerLetter, minWordLength = 4, onSubmit }) {
   const [word, setWord] = useState('');
   const [definitions, setDefinitions] = useState([]);
   const [foundWords, setFoundWords] = useState([]);
@@ -27,7 +30,7 @@ export default function WordInput({ centerLetter, onSubmit }) {
   });
 
   const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   const showMessage = (message, severity = 'error') => {
@@ -38,56 +41,47 @@ export default function WordInput({ centerLetter, onSubmit }) {
     });
   };
 
-  const isValidWord = (input) => {
-    return (
-      input.length >= 4 &&
-      input.toLowerCase().includes(centerLetter.toLowerCase()) &&
-      !foundWords.includes(input.toLowerCase())
-    );
+  const validateWord = (input) => {
+    if (!input.trim()) {
+      throw new Error('Please enter a word');
+    }
+
+    if (input.length < minWordLength) {
+      throw new Error(`Word must be at least ${minWordLength} letters long`);
+    }
+
+    if (!input.toLowerCase().includes(centerLetter.toLowerCase())) {
+      throw new Error('Word must include the center letter');
+    }
+
+    if (foundWords.includes(input.toLowerCase())) {
+      throw new Error('You have already found this word');
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Basic validation first
-    if (!word.trim()) {
-      showMessage('Please enter a word');
-      return;
-    }
-
-    if (word.length < 4) {
-      showMessage('Word must be at least 4 letters long');
-      return;
-    }
-
-    if (!word.toLowerCase().includes(centerLetter.toLowerCase())) {
-      showMessage('Word must include the center letter');
-      return;
-    }
-
-    if (foundWords.includes(word.toLowerCase())) {
-      showMessage('You have already found this word');
-      return;
-    }
-
     try {
-      const response = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`
-      );
+      validateWord(word);
+      
+      const response = await fetch(`${DICTIONARY_API_URL}/${word.toLowerCase()}`);
       const data = await response.json();
 
-      if (response.ok) {
-        setFoundWords([...foundWords, word.toLowerCase()]);
-        setDefinitions(data);
-        setScore(score + 1);
-        setWord('');
-        showMessage('Word found! Well done!', 'success');
-        onSubmit?.(word);
-      } else {
-        showMessage('Not a valid English word');
+      if (!response.ok) {
+        throw new Error('Not a valid English word');
       }
+
+      setFoundWords(prev => [...prev, word.toLowerCase()]);
+      setDefinitions(data);
+      setScore(prev => prev + word.length);
+      setWord('');
+      showMessage('Word found! Well done!', 'success');
+      onSubmit?.(word);
     } catch (err) {
-      showMessage('Error checking word. Please try again.');
+      showMessage(err.message);
     }
   };
 
@@ -101,6 +95,8 @@ export default function WordInput({ centerLetter, onSubmit }) {
             onChange={(e) => setWord(e.target.value.toUpperCase())}
             label="Enter word"
             variant="outlined"
+            autoComplete="off"
+            autoFocus
           />
           <Button
             variant="contained"
@@ -115,11 +111,11 @@ export default function WordInput({ centerLetter, onSubmit }) {
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          Words Found: {score}
+          Score: {score} ({foundWords.length} words)
         </Typography>
         <List dense>
           {foundWords.map((word, index) => (
-            <ListItem key={index}>
+            <ListItem key={`${word}-${index}`}>
               <ListItemText primary={word.toUpperCase()} />
             </ListItem>
           ))}
@@ -133,7 +129,7 @@ export default function WordInput({ centerLetter, onSubmit }) {
           </Typography>
           <List>
             {definitions[0].meanings.map((meaning, index) => (
-              <div key={index}>
+              <div key={`${meaning.partOfSpeech}-${index}`}>
                 <ListItem>
                   <ListItemText
                     primary={meaning.partOfSpeech}
@@ -164,4 +160,10 @@ export default function WordInput({ centerLetter, onSubmit }) {
       </Snackbar>
     </Box>
   );
-} 
+}
+
+WordInput.propTypes = {
+  centerLetter: PropTypes.string.isRequired,
+  minWordLength: PropTypes.number,
+  onSubmit: PropTypes.func,
+}; 

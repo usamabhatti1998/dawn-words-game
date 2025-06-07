@@ -3,7 +3,6 @@
 import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
-  // You can customize your theme here
   palette: {
     primary: {
       main: '#2196f3',
@@ -16,11 +15,26 @@ const theme = createTheme({
       paper: '#ffffff',
     },
   },
+  typography: {
+    fontFamily: '"Inter", "Helvetica", "Arial", sans-serif',
+    h3: {
+      fontWeight: 600,
+    },
+  },
   components: {
     MuiPaper: {
       styleOverrides: {
         root: {
           borderRadius: 8,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: 'none',
         },
       },
     },
